@@ -3,7 +3,7 @@
 // Control tone via 100k pot on pin A1
 // Connect DOT key to pin 7
 // Connect DASH key to pin 8
-// Connect buzzer to pin X
+// Connect buzzer to pin 4
 // Connect relay to pin 13
 
 #define BTN_DOT 7
@@ -13,6 +13,7 @@
 #define S_DASH 2
 
 unsigned int SENDING = 0;
+unsigned int LAST_SENT_SYMBOL = 0;
 unsigned int SEND_HIGH_TIME = 0;
 unsigned int SEND_LOW_TIME = 0;
 
@@ -59,12 +60,20 @@ void send_dot() {
   SENDING = S_DOT;
   SEND_HIGH_TIME = DOT_LENGTH;
   SEND_LOW_TIME = DOT_LENGTH;
+  LAST_SENT_SYMBOL = S_DOT;
+
+  Serial.println("DOT");
+  tone(4, tone_freq, DOT_LENGTH);
 }
 
 void send_dash() {
   SENDING = S_DASH;
   SEND_HIGH_TIME = DASH_LENGTH;
   SEND_LOW_TIME = DOT_LENGTH;
+  LAST_SENT_SYMBOL = S_DASH;
+
+  Serial.println("DASH");
+  tone(4, tone_freq, DASH_LENGTH);
 }
 
 #define decrement(var, amount) var = amount > var ? 0 : var - amount
@@ -77,7 +86,7 @@ void loop() {
   prev_loop_len = new_millis - prev_millis;
   prev_millis = new_millis;
 
-  DOT_LENGTH = 10 + analogRead(0);
+  DOT_LENGTH = 50 + analogRead(0) / 4u;
 
   // Get new tone frequency
   tone_freq = 200 + analogRead(1);
@@ -103,15 +112,20 @@ void loop() {
     btn_dot_st = btn_dot_status();
     btn_dash_st = btn_dash_status();
 
-    if (btn_dot_st) {
-      Serial.println("DOT");
+    if (btn_dot_st && btn_dash_st) {
+      // Both keys down: alternate dots and dashes
+      if (LAST_SENT_SYMBOL == S_DOT) {
+        send_dash();
+      }
+      else {
+        send_dot();
+      }
+    }
+    else if (btn_dot_st) {
       send_dot();
-      tone(4, tone_freq, DOT_LENGTH);
     }
     else if (btn_dash_st) {
-      Serial.println("DASH");
       send_dash();
-      tone(4, tone_freq, DASH_LENGTH);
     }
 
   }
